@@ -1,0 +1,1 @@
+This is a simple Node.js TypeScript Template for creating a server.

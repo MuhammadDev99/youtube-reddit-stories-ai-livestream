@@ -1,0 +1,1 @@
+This is just a simple React app with Typescript and Vite.
