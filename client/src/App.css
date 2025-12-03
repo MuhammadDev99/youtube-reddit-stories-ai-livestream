@@ -1,69 +1,245 @@
-body {
-    margin: 0;
-    background: #000;
-    color: white;
-    font-family: sans-serif;
-    overflow: hidden;
-    /* No scrollbars for video */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@400;700&display=swap');
+
+:root {
+    --primary: #ffffff;
+    --accent-blue: #3b82f6;
+    --accent-pink: #ec4899;
+    --bg-dark: #0a0a0f;
+    --panel-bg: rgba(13, 13, 18, 0.95);
+    --border-color: #2d2d3d;
 }
 
-/* 16:9 Container */
-.screen {
-    width: 100vw;
-    height: 100vh;
+body {
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg-dark);
+    color: var(--primary);
+    font-family: 'Inter', sans-serif;
+}
+
+/* --- BACKGROUND (Subtle & Deep) --- */
+.broadcast-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: radial-gradient(circle at center, #1a1b26 0%, #000000 100%);
+}
+
+.moving-grid {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    top: -50%;
+    left: -50%;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    transform: perspective(500px) rotateX(60deg);
+    animation: gridMove 20s linear infinite;
+    opacity: 0.5;
+}
+
+@keyframes gridMove {
+    0% {
+        transform: perspective(500px) rotateX(60deg) translateY(0);
+    }
+
+    100% {
+        transform: perspective(500px) rotateX(60deg) translateY(60px);
+    }
+}
+
+/* --- LAYOUT WRAPPER --- */
+.screen-layout {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 40px;
+    height: 100vh;
+    padding: 40px 60px;
     box-sizing: border-box;
+    position: relative;
 }
 
-.header {
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
-}
-
-.header h2 {
-    margin: 0;
-    font-size: 2rem;
-    color: #ddd;
-}
-
-.content {
-    flex: 1;
+/* --- HEADER BAR (Always Visible) --- */
+.broadcast-header {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    /* Angled corners (Sci-Fi look) */
+    clip-path: polygon(0 0,
+            100% 0,
+            100% 80%,
+            98% 100%,
+            2% 100%,
+            0 80%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.live-tag {
+    background: #ef4444;
+    color: white;
+    padding: 4px 12px;
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    animation: pulse 2s infinite;
+}
+
+.story-metadata {
+    text-align: right;
+    max-width: 60%;
+}
+
+.story-title {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0;
+    color: #e2e8f0;
+    letter-spacing: 0.5px;
+}
+
+.story-author {
+    font-size: 1rem;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+
+/* --- MAIN STAGE --- */
+.stage-area {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* --- DIALOGUE BOX --- */
+.dialogue-panel {
+    width: 90%;
+    max-width: 1400px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-left: 6px solid white;
+    /* Accent bar changes color via inline style */
+    padding: 50px;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    /* Subtle rounded corners */
+    border-radius: 0 12px 12px 0;
+    transition: border-color 0.3s ease;
+}
+
+/* The Name Tag above the text */
+.speaker-tag {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    display: inline-block;
+    padding: 5px 0;
+}
+
+/* The Main Text */
+.dialogue-text {
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: white;
+    /* Hard shadow for readability, NO glow */
+    filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1));
+    min-height: 120px;
+}
+
+/* Progress bar inside the panel */
+.progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: #333;
+    width: 100%;
+}
+
+.progress-fill {
+    height: 100%;
+    background: white;
+    transition: width 0.3s linear;
+}
+
+/* --- STATUS MESSAGES --- */
+.status-overlay {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 2rem;
+    color: #64748b;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    animation: float 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* --- SETUP SCREEN --- */
+.init-screen {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    text-align: center;
+    background: #000;
 }
 
-/* The Subtitles */
-.subtitle-box h1 {
-    font-size: 3.5rem;
-    /* Big text for video */
-    margin: 20px 0;
-    line-height: 1.3;
-    text-shadow: 2px 2px 4px black;
-}
-
-.subtitle-box h3 {
-    text-transform: uppercase;
-    font-size: 1.5rem;
-    margin: 0;
-    letter-spacing: 2px;
-}
-
-/* Buttons */
-button {
-    font-size: 1.5rem;
-    padding: 15px 30px;
-    margin: 10px;
-    cursor: pointer;
-    background: white;
+.start-button {
+    background: var(--primary);
+    color: black;
     border: none;
-    font-weight: bold;
+    padding: 1.5rem 4rem;
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+    transition: transform 0.2s;
 }
 
-button:hover {
-    background: #ccc;
+.start-button:hover {
+    transform: scale(1.05);
 }

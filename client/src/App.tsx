@@ -1,113 +1,203 @@
 import { useState, useRef, useEffect } from 'react';
 import './App.css';
+import type { GeneratedStory } from './common/types';
+import { getStory, safe } from './utils';
 
-// --- Types (Inline for simplicity) ---
-interface DialogueLine {
-    speaker: string;
-    text: string;
-    audioUrl: string;
-}
+// Configuration
+const STORY_COOLDOWN_MS = 6000;
+let globalStoryIndex = 0;
 
-interface StoryResponse {
-    story: {
-        original: { title: string; author: string };
-        dialogue: DialogueLine[];
-    };
-}
-
-const API_URL = 'http://localhost:4000';
+// Helper: Typewriter Effect
+const Typewriter = ({ text, speed = 25 }: { text: string, speed?: number }) => {
+    const [display, setDisplay] = useState('');
+    useEffect(() => {
+        setDisplay('');
+        let i = 0;
+        // Basic animation loop
+        const timer = setInterval(() => {
+            if (i < text.length) {
+                setDisplay(prev => prev + text.charAt(i));
+                i++;
+            } else {
+                clearInterval(timer);
+            }
+        }, speed);
+        return () => clearInterval(timer);
+    }, [text, speed]);
+    return <span>{display}</span>;
+};
 
 function App() {
-    const [data, setData] = useState<StoryResponse | null>(null);
-    const [currentIndex, setCurrentIndex] = useState<number>(-1);
+    const [started, setStarted] = useState(false);
+
+    // We keep 'currentStory' for what is visually on screen
+    // 'status' dictates what the engine is doing
+    const [currentStory, setCurrentStory] = useState<GeneratedStory | null>(null);
+    const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'PLAYING' | 'WAITING'>('IDLE');
+
+    // Playback state
+    const [lineIndex, setLineIndex] = useState<number>(-1);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    // 1. Fetch Story on Load
-    useEffect(() => {
-        fetchNewStory();
-    }, []);
+    const startBroadcast = () => {
+        setStarted(true);
+        runStreamLoop();
+    };
 
-    const fetchNewStory = async () => {
-        stopAudio();
-        setData(null); // Clear screen
-        try {
-            const res = await fetch(`${API_URL}/story`);
-            const json = await res.json();
-            console.log(json)
-            setData(json);
-        } catch (e) {
-            console.error(e);
+    const runStreamLoop = async () => {
+        while (true) {
+            try {
+                setStatus('LOADING');
+
+                // 1. Fetch NEXT story (keep previous title on screen if possible, or show Loading)
+                const res = await safe<GeneratedStory>(getStory(globalStoryIndex));
+
+                if (!res.success) {
+                    console.error("Fetch error:", res.error);
+                    await delay(5000); // Retry delay
+                    continue;
+                }
+
+                // 2. Data Ready -> Swap active story
+                const newStory = res.data;
+                globalStoryIndex++;
+
+                setCurrentStory(newStory); // Visual update
+
+                // 3. Play
+                setStatus('PLAYING');
+                await playSequence(newStory);
+
+                // 4. Cooldown
+                setStatus('WAITING');
+                await delay(STORY_COOLDOWN_MS);
+
+            } catch (e) {
+                console.error("Loop Error:", e);
+                await delay(5000);
+            }
         }
     };
 
-    // 2. Playback Logic (Recursive)
-    const playSequence = (index: number) => {
-        if (!data) return;
+    const playSequence = async (storyData: GeneratedStory) => {
+        const lines = storyData.dialogue;
 
-        // Check if story is finished
-        if (index >= data.story.dialogue.length) {
-            setCurrentIndex(-1); // Reset or handle "Done" state
-            return;
+        for (let i = 0; i < lines.length; i++) {
+            setLineIndex(i); // Update UI to show new line
+            const line = lines[i];
+
+            if (line.audioUrl) {
+                await playAudio(line.audioUrl);
+            } else {
+                // Fallback timing calculation
+                await delay(1500 + line.text.length * 50);
+            }
+
+            // Short pause between lines
+            await delay(600);
         }
+    };
 
-        // A. Update UI immediately
-        setCurrentIndex(index);
-
-        // B. Setup Audio
-        const line = data.story.dialogue[index];
-        if (audioRef.current) audioRef.current.pause(); // Safety stop
-
-        const audio = new Audio(line.audioUrl);
+    const playAudio = (url: string) => new Promise<void>(resolve => {
+        if (audioRef.current) audioRef.current.pause();
+        const audio = new Audio(url);
         audioRef.current = audio;
 
-        // C. When audio ends -> Play next index
-        audio.onended = () => {
-            playSequence(index + 1);
-        };
+        audio.onended = () => resolve();
+        // Resolve on error too so stream doesn't hang
+        audio.onerror = () => resolve();
 
-        // D. Play
-        audio.play().catch(e => console.error("Audio Error:", e));
-    };
+        audio.play().catch(e => {
+            console.warn("Autoplay block:", e);
+            resolve();
+        });
+    });
 
-    const stopAudio = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-        setCurrentIndex(-1);
-    };
+    const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
     // --- RENDER ---
 
-    if (!data) return <div className="screen">Loading...</div>;
+    if (!started) return (
+        <div className="init-screen">
+            <button className="start-button" onClick={startBroadcast}>
+                INITIALIZE SYSTEM
+            </button>
+        </div>
+    );
 
-    const currentLine = currentIndex >= 0 ? data.story.dialogue[currentIndex] : null;
+    // Determine current line
+    const activeLine = (status === 'PLAYING' && currentStory && lineIndex >= 0)
+        ? currentStory.dialogue[lineIndex]
+        : null;
+
+    // Calculate progress for the bar
+    const progress = (currentStory && lineIndex >= 0)
+        ? ((lineIndex + 1) / currentStory.dialogue.length) * 100
+        : 0;
+
+    // Color logic
+    const isMale = activeLine?.speaker.toLowerCase().match(/(man|john|detective|father|boy|male)/);
+    const accentColor = isMale ? '#3b82f6' : '#ec4899'; // Blue vs Pink
 
     return (
-        <div className="screen">
-            {/* 1. Header Area */}
-            <div className="header">
-                <h2>{data.story.original.title}</h2>
-                <p>u/{data.story.original.author}</p>
+        <div className="screen-layout">
+            <div className="broadcast-bg">
+                <div className="moving-grid"></div>
             </div>
 
-            {/* 2. Subtitle Area */}
-            <div className="content">
-                {currentLine ? (
-                    <div className="subtitle-box">
-                        <h3 style={{ color: currentLine.speaker.includes('Man') ? '#90cdf4' : '#f687b3' }}>
-                            {currentLine.speaker}
-                        </h3>
-                        <h1>{currentLine.text}</h1>
-                    </div>
-                ) : (
-                    /* Start Button */
-                    <div className="start-menu">
-                        <button onClick={() => playSequence(0)}>START STORY</button>
-                        <button onClick={fetchNewStory}>GET NEW STORY</button>
+            {/* HEADER: Shows either current story info OR "Loading Next..." */}
+            <header className="broadcast-header">
+                <div className="live-tag">LIVE BROADCAST</div>
+
+                <div className="story-metadata">
+                    {currentStory ? (
+                        <>
+                            <h1 className="story-title">{currentStory.original.title}</h1>
+                            <div className="story-author">by u/{currentStory.original.author}</div>
+                        </>
+                    ) : (
+                        <h1 className="story-title">SEARCHING FREQUENCY...</h1>
+                    )}
+                </div>
+            </header>
+
+            {/* CENTER STAGE */}
+            <main className="stage-area">
+
+                {/* STATE: LOADING/WAITING */}
+                {(status === 'LOADING' || status === 'WAITING') && (
+                    <div className="status-overlay">
+                        {status === 'LOADING' ? 'DECRYPTING DATA STREAM...' : 'NEXT SEGMENT LOADING...'}
                     </div>
                 )}
-            </div>
+
+                {/* STATE: PLAYING */}
+                {status === 'PLAYING' && activeLine && (
+                    <div
+                        className="dialogue-panel"
+                        style={{ borderLeftColor: accentColor }}
+                    >
+                        {/* Speaker Name */}
+                        <div className="speaker-tag" style={{ color: accentColor }}>
+                            {activeLine.speaker}
+                        </div>
+
+                        {/* The Text */}
+                        <div className="dialogue-text">
+                            <Typewriter key={lineIndex} text={activeLine.text} speed={30} />
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="progress-bar">
+                            <div
+                                className="progress-fill"
+                                style={{ width: `${progress}%`, backgroundColor: accentColor }}
+                            ></div>
+                        </div>
+                    </div>
+                )}
+
+            </main>
         </div>
     );
 }
