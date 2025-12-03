@@ -61,7 +61,7 @@ function App() {
                 // 2. Data Ready -> Swap active story
                 const newStory = res.data;
                 globalStoryIndex++;
-
+                console.log(newStory)
                 setCurrentStory(newStory); // Visual update
 
                 // 3. Play

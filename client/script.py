@@ -7,7 +7,7 @@ import sys
 
 # --- CONFIGURATION FROM YOUR REACT APP ---
 # Based on your consts.ts and all.ts
-API_BASE = "http://31.57.154.144:4000"
+API_BASE = "http://localhsot:4000"
 ENDPOINT = "/story"
 API_URL = f"{API_BASE}{ENDPOINT}"
 
