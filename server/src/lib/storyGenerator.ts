@@ -22,6 +22,7 @@ export function parseDialogue(input: string): DialogueLine[] {
                 dialogueLines.push({
                     speaker: speakerStr,
                     text,
+                    audioUrl: null,
                 });
             }
         }

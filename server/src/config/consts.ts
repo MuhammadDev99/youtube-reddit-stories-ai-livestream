@@ -1,12 +1,33 @@
+import dotenv from 'dotenv';
 import path, { resolve } from "path";
-export const API_BASE = 'http://localhost:4000'
-export const __DIRNAME = import.meta.dirname
-export const STORIES_DIR = resolve(__DIRNAME, '../../stories');
-export const GENERATED_STORIES_DIR = resolve(__DIRNAME, '../../public/generated-stories')
+import os from "os";
 
-export const PIPER_EXECUTABLE_PATH = path.resolve(__DIRNAME, '../../../piper/piper.exe');
-console.log(PIPER_EXECUTABLE_PATH)
+// 1. FIX: Use import.meta.dirname (Native replacement for __dirname in Node 20+)
+const __DIRNAME = import.meta.dirname;
+
+// 2. Load .env BEFORE checking process.env
+// We point explicitly to the .env file two directories up
+dotenv.config({ path: resolve(__DIRNAME, '../../.env') });
+
+export const FRESH_STORIES_AMOUNT = 5;
+export const API_BASE = 'http://localhost:4000';
+export const STORIES_DIR = resolve(__DIRNAME, '../../stories');
+export const GENERATED_STORIES_DIR = resolve(__DIRNAME, '../../public/generated-stories');
+
+// 3. Determine Piper Path
+const ENV_PIPER_PATH = process.env.PIPER_PATH;
+
+// Fallback for Windows/Local Dev
+const LOCAL_BINARY_NAME = os.platform() === 'win32' ? 'piper.exe' : 'piper';
+const LOCAL_PIPER_PATH = path.resolve(__DIRNAME, '../../../piper', LOCAL_BINARY_NAME);
+
+// Final Decision
+export const PIPER_EXECUTABLE_PATH = ENV_PIPER_PATH || LOCAL_PIPER_PATH;
+
+// Resolve models relative to the executable path
 export const PIPER_MODELS_PATH = path.resolve(path.dirname(PIPER_EXECUTABLE_PATH), 'models');
+
+console.log(`Using Piper at: ${PIPER_EXECUTABLE_PATH}`);
 
 export const STORY_SYSTEM_PROMPT = `
 You are a scriptwriter converting a Reddit story into a realistic, overheard dialogue between two close friends (a Male and a Female).
@@ -26,4 +47,4 @@ You are a scriptwriter converting a Reddit story into a realistic, overheard dia
 **Format:**
 Man: [Text]
 Woman: [Text]
-`
+`;
